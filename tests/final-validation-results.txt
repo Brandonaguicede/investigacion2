@@ -53,3 +53,34 @@ Scripts vigentes (ejecutados contra la version final):
 Ambos requieren un backend recien iniciado (precio 100).
 
 Ver comandos de ejecucion en tests/reproducibility-results.txt.
+
+GIT Y CLON LIMPIO (2026-09-21)
+Repositorio: rama main; commit 937a31d "feat: add WebSocket auction demo" (57 archivos, 114 KB).
+run.sh registrado en Git con modo 100755. Sin archivos de build, IDE, perfiles de navegador ni secretos.
+Remoto: NO configurado (REMOTE PENDIENTE); no se hizo push. Sin remoto se probo un clon del repositorio
+local (git clone <ruta>), que contiene exactamente lo commiteado.
+
+Preparacion: docker compose down --remove-orphans y eliminacion de las imagenes propias del proyecto
+(auction-auction-server, auction-auction-web y una imagen antigua de pruebas). Imagenes ajenas intactas.
+Clon en C:\Temp\auction-clean-test (57 archivos; sin node_modules, dist, bin, obj ni .vs).
+
+Un solo comando desde el clon: .\run.ps1  -> exit 0 en 31 s.
+- dotnet restore, dotnet publish, npm ci y vite build se ejecutaron dentro de Docker (no en el host).
+- docker compose ps: auction-server Up; auction-web Up (healthy). Solo se publica 8081.
+- http://localhost:8081 -> 200, titulo "Subasta en tiempo real".
+- ws://localhost:8081/ws -> HTTP/1.1 101 Switching Protocols.
+- Backend como usuario app (uid 1654), sin SDK en la imagen final.
+- tests/browser-demo-test.cjs (Chromium, 3 pestanas): 7 PASS. Estado inicial $100 / ---;
+  Kenneth 120 -> ambos 120 / Kenneth; Maria 110 -> error solo a Maria; Maria 150 -> ambos 150 / Maria;
+  pestana tardia -> 150 / Maria sin ofertar.
+- Reinicio: estado 150 / Maria -> docker compose down -> .\run.ps1 (13 s) -> 100 / sin ganador.
+  NO DATABASE: el estado en memoria vuelve al valor inicial (esperado).
+- tests/websocket-integration-test.ps1 desde el clon: ALL A-M PASSED.
+
+Linux:
+- Clon nativo en Ubuntu 26.04 (WSL2, ext4): run.sh -rwxr-xr-x (modo Git 100755), archivos en LF,
+  ./run.sh se ejecuta sin "Permission denied". Ese distro no tiene Docker integrado, por lo que
+  la ejecucion completa con Docker no se hizo alli.
+- Contenedor Linux (docker:cli, sin node, npm, dotnet ni nginx) sobre el clon: ./run.sh exit 0,
+  sin "Permission denied", servicios healthy y frontend 200.
+- macOS: no probado.
