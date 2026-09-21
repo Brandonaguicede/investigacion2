@@ -1,0 +1,37 @@
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+
+# Frontend
+**/node_modules/
+**/dist/
+
+# IDE
+**/.vs/
+*.user
+*.suo
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Perfiles temporales de navegador usados para diagnóstico (cientos de MB, datos personales)
+**/.diagnostic-*/
+
+# Logs y temporales
+*.log
+*.stderr
+*.tmp
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+*.local
+*.pfx
+*.p12
+*.pem
+*.key
+secrets.json
+**/appsettings.*.local.json

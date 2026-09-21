@@ -1,0 +1,38 @@
+# Contexto de build del backend (raíz de la solución).
+# El Dockerfile solo copia backend/Auction.* y backend/WEBSOCKET; esto reduce lo que se envía a Docker.
+# El frontend tiene su propio contexto y su propio .dockerignore.
+frontend/
+tests/
+
+# Artefactos de compilación y dependencias
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+
+# IDE y control de versiones
+**/.git/
+**/.idea/
+**/.vs/
+**/.vscode/
+**/*.user
+**/*.suo
+**/*.swp
+**/*.tmp
+
+# Perfiles temporales de navegador y logs
+**/.diagnostic-*/
+**/*.log
+
+# Secretos y configuración local
+**/.env
+**/.env.*
+**/secrets.json
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+**/appsettings.Development.json
+**/appsettings.*.local.json
+**/Properties/launchSettings.json

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="backend/Auction.Application/Auction.Application.csproj" Id="c46eeb3c-7e96-4f45-bd4e-c70119944b79" />
+  <Project Path="backend/Auction.Domain/Auction.Domain.csproj" Id="49c60276-3537-4eef-ae3f-1975ca766904" />
+  <Project Path="backend/Auction.Infrastructure/Auction.Infrastructure.csproj" Id="a24cd79b-bfbf-48e8-920d-bddbb52faf24" />
+  <Project Path="backend/WEBSOCKET/WEBSOCKET.csproj" />
+</Solution>

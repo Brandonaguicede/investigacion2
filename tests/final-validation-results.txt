@@ -1,0 +1,55 @@
+Validacion final - limpieza tecnica y pruebas de la version final
+Fecha: 2026-09-21
+Arquitectura: React + Vite (Nginx) -> /ws -> ASP.NET Core .NET 10 -> Application -> Domain / Infrastructure
+Puerto publico unico: 8081. Backend 8080 solo dentro de Docker.
+
+BASE DE DATOS: NO DATABASE
+ESTADO EN MEMORIA: IN-MEMORY STATE RESET EXPECTED
+El estado vive en InMemoryAuctionStateStore. Al reiniciar el backend el precio vuelve a
+100 y no hay ganador. Es intencional para Investigacion II (persistencia = Proyecto I).
+
+CAMBIOS
+- El servidor envia AuctionUpdatedMessage SOLO al cliente que acaba de conectarse
+  (estado actual), por el mismo WebSocket. Sin polling, sin HTTP, sin fetch.
+  Caso de uso nuevo: Application/Auctions/GetAuctionState.
+- Handler: un unico parseo JSON (antes JsonDocument + Deserialize).
+- Conexion con candado propio (WebSocketConnection.SendLock) en lugar de ConditionalWeakTable.
+- Validacion en Domain: nombre de participante de 1 a 100 caracteres (maxLength=100 en React).
+- Mensajes visibles al usuario unificados en espanol.
+- Eliminados: Controllers/Authorization/OpenApi (y el paquete NuGet), Bid.CreatedAt,
+  TryPlaceBid(Bid?) sin out, bucle do/while de Guid, environment redundante en compose
+  (causaba un warn en cada arranque), .diagnostic-edge (428.4 MiB) y evidencia obsoleta.
+
+VALIDACION
+dotnet restore + dotnet build WEBSOCKET.slnx -c Release: 0 errores, 0 advertencias.
+npm ci + npm run build: PASS (0 vulnerabilidades, 19 modulos).
+docker compose down --remove-orphans; docker compose build --no-cache; docker compose up -d --wait:
+  PASS (solo WORKDIR y la imagen base de Nginx marcados CACHED).
+  auction-server Up/healthy, auction-web healthy. Imagenes: server 95.9 MB, web 26.2 MB.
+  Usuario del backend: app (uid 1654). Sin SDK en la imagen final. Sin OpenApi en /app.
+  localhost:8080 no responde desde el host; localhost:8081 responde 200.
+
+PRUEBAS FUNCIONALES (ws://localhost:8081/ws, a traves de Nginx)
+1. Estado inicial: cliente A recibe 100 / sin ganador al conectar, sin ofertar. PASS
+2. Cliente tardio: Kenneth 120; cliente nuevo recibe 120 / Kenneth al conectar. PASS
+   La conexion nueva no genera mensajes a los demas clientes. PASS
+3. Broadcast: Maria 150 -> todos 150 / Maria. PASS
+4. Rechazo: Kenneth 140 -> error solo a Kenneth; Maria y el cliente tardio sin mensajes;
+   estado 150 / Maria. PASS
+5. Concurrencia: 60 ofertas simultaneas desde 6 clientes; precio final = oferta mayor,
+   ganador correcto, precios estrictamente crecientes en todos los clientes. PASS
+   8 rondas: 7 clientes cierran mientras 3 ofertan (carrera Close vs Send). PASS
+   Logs del servidor: 0 excepciones, 0 fail/crit/warn.
+6. Reinicio: docker compose restart auction-server -> primer mensaje
+   {"currentPrice":100,"currentWinner":null,...}. PASS (esperado: NO DATABASE)
+Extra: 14 mensajes invalidos + binario + >64KiB -> error solo al emisor, conexion abierta,
+   todos en espanol; nombre de 100 caracteres aceptado, 101 rechazado. PASS
+
+Scripts vigentes (ejecutados contra la version final):
+- tests/websocket-integration-test.ps1 -Endpoint ws://localhost:8081/ws : ALL A-M PASSED
+  (incluye estado inicial, cliente tardio, 20 rondas concurrentes, cierre y reconexion).
+- tests/browser-demo-test.cjs (Chromium, 3 pestanas): 7 PASS, exit 0
+  (estado inicial $100 / ---, broadcast, error privado, pestana tardia 150 / Maria).
+Ambos requieren un backend recien iniciado (precio 100).
+
+Ver comandos de ejecucion en tests/reproducibility-results.txt.

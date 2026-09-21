@@ -1,0 +1,39 @@
+:root {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #263548;
+  background: #f3f5f8;
+  font-synthesis: none;
+  line-height: 1.5;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 40px 20px; min-width: 280px; }
+.auction { width: min(100%, 560px); margin: auto; background: #fff; border: 1px solid #d1d9e3; border-radius: 10px; overflow: hidden; }
+.page-header, .auction-card, .bid-form, .messages { padding: 24px 32px; }
+.page-header { border-bottom: 1px solid #d1d9e3; }
+h1 { margin: 0 0 16px; font-size: clamp(1.5rem, 5vw, 1.85rem); line-height: 1.2; }
+h2, label { font-size: 1rem; font-weight: 600; }
+h2 { margin: 0; }
+.connection-status { display: flex; align-items: center; gap: 6px; margin: 0; color: #526176; font-size: 0.95rem; }
+.status-dot { width: 8px; height: 8px; background: #748195; border-radius: 50%; margin-right: 3px; flex-shrink: 0; }
+.auction-card { background: #f7f9fc; border-bottom: 1px solid #d1d9e3; }
+.price { margin: 4px 0 12px; font-size: 2.75rem; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; }
+.winner { margin: 0; display: flex; justify-content: space-between; gap: 16px; }
+.winner dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.bid-form { display: grid; gap: 18px; }
+.field { display: grid; gap: 7px; }
+input, button { width: 100%; min-height: 46px; font: inherit; border-radius: 5px; }
+input { padding: 9px 12px; border: 1px solid #8795a7; color: inherit; background: #fff; }
+input:focus-visible { outline: 3px solid #2a649a; outline-offset: 3px; }
+button { border: none; font-weight: 600; }
+button:disabled { background: #e3e9f0; color: #59687b; cursor: not-allowed; }
+.field-help { margin: -8px 0 0; color: #59687b; font-size: 0.85rem; }
+.messages { border-top: 1px solid #d1d9e3; }
+.messages p { margin: 8px 0 0; color: #59687b; }
+@media (max-width: 480px) {
+  body { padding: 16px 12px; }
+  .page-header, .auction-card, .bid-form, .messages { padding: 22px; }
+}
+
+button:not(:disabled) { background: #263548; color: white; cursor: pointer; }
+button:focus-visible { outline: 3px solid #2a649a; outline-offset: 3px; }

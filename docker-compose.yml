@@ -1,0 +1,21 @@
+name: auction
+services:
+  auction-server:
+    build:
+      context: .
+      dockerfile: backend/WEBSOCKET/Dockerfile
+    expose:
+      - "8080"
+  auction-web:
+    build:
+      context: frontend/Auction.Web
+    ports:
+      - "8081:80"
+    depends_on:
+      - auction-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s

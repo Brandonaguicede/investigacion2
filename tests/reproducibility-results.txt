@@ -1,0 +1,156 @@
+Ejecucion reproducible React + ASP.NET Core + Docker Compose
+Fecha: 2026-09-20
+Estado: pruebas de ejecucion con Docker en PASS (registro historico; el clon limpio esta en final-validation-results.txt).
+
+NOTA: este registro es historico. Describe la arquitectura, los scripts y la ejecucion de Docker,
+que siguen vigentes. Posteriormente el servidor paso a enviar el estado actual a cada cliente
+al conectarse, por lo que las secuencias de frames y el hash del JavaScript citados abajo ya
+no coinciden. La evidencia de la version final esta en tests/final-validation-results.txt.
+
+RAIZ Y ALCANCE
+La raiz de la solucion contiene backend/, frontend/, tests/ y WEBSOCKET.slnx.
+Este registro es anterior al versionado en Git; la verificacion de un clon limpio esta en final-validation-results.txt.
+
+COMANDOS DE USUARIO (desde la raiz)
+Windows: .\run.ps1
+Linux/macOS: ./run.sh
+Detener: docker compose down
+Ambos scripts ejecutan:
+docker compose -f docker-compose.yml up --build -d --wait --wait-timeout 120
+
+ARQUITECTURA
+Browser -> http://localhost:8081 -> auction-web (React compilado + Nginx)
+Browser -> ws://localhost:8081/ws -> Nginx -> http://auction-server:8080/ws
+auction-server -> Application -> Domain / Infrastructure
+Servicios Compose: auction-server, auction-web.
+Solo auction-web publica puerto: 8081:80.
+auction-server expone 8080 solamente dentro de Docker.
+ASPNETCORE_URLS=http://+:8080; HttpsRedirection__Enabled=false.
+React construye /ws con window.location; http -> ws, https -> wss.
+No hostname ni puerto hardcodeado en React.
+GET /health responde 200 "OK"; no contiene logica de negocio.
+Healthcheck de auction-web: wget a / y /health (proxy al backend).
+depends_on solo establece orden; --wait espera el healthcheck integrado.
+No se instalo ningun paquete de healthcheck en ASP.NET.
+
+PRUEBA 1: CONSTRUCCION SIN CACHE
+docker compose down --remove-orphans
+Exit code 0.
+docker compose build --no-cache
+Exit code 0. PASS.
+Backend: dotnet restore y dotnet publish Release dentro de SDK .NET 10.
+Frontend: npm ci (25 paquetes, 0 vulnerabilidades) y npm run build.
+TypeScript y Vite 8.3.0: PASS; 19 modulos transformados.
+Salida React:
+dist/index.html
+dist/assets/index-C73OP0dC.css
+dist/assets/index-BydxBIKo.js
+Imagenes construidas: auction-auction-server y auction-auction-web.
+
+PRUEBA 2: ARRANQUE
+docker compose up -d
+Exit code 0. PASS.
+docker compose ps
+auction-auction-server-1  auction-auction-server  Up             8080/tcp
+auction-auction-web-1     auction-auction-web     Up (healthy)   0.0.0.0:8081->80/tcp
+docker compose exec -T auction-web nginx -t
+Syntax OK; test successful.
+HTTP GET http://localhost:8081 -> 200.
+HTML servido contiene root de React y assets compilados; no Vite dev server.
+HTTP GET http://localhost:8081/health -> 200 "OK".
+Imagen Nginx final: command -v node / npm no encuentra ejecutables.
+Imagen ASP.NET final: dotnet --list-sdks devuelve lista vacia.
+
+PRUEBA 3: DOS PESTANAS REALES
+Prueba: tests/browser-demo-test.cjs
+Chromium headless en mcr.microsoft.com/playwright:v1.58.2-noble.
+Playwright 1.58.2 se instala solo en el contenedor temporal de prueba.
+No se instala ni ejecuta Node/npm en el host.
+Desde ese contenedor se usa http://host.docker.internal:8081 para alcanzar
+el MISMO puerto 8081 publicado al host. localhost dentro del contenedor
+de pruebas seria el propio contenedor, no el host.
+La prueba comprueba que el WebSocket usa exactamente el origen de la pagina.
+
+Salida real, exit code 0:
+PASS: React rendered in two Chromium tabs; both Conectado; same-origin WebSocket
+PASS: Kenneth 120 -> both clients 120 / Kenneth, no refresh
+PASS: Maria 110 rejected only to Maria; Kenneth receives no message; price remains 120
+PASS: Maria 150 -> both clients 150 / Maria; zero reloads or JS errors
+PASS: real WebSocket frames and broadcast verified
+
+Tambien se verificaron los frames recibidos:
+Kenneth: auctionUpdated, auctionUpdated.
+Maria: auctionUpdated, error, auctionUpdated.
+Solo una navegacion por pestana. Cero errores JavaScript.
+El texto de rechazo en React coincide con el error enviado por el servidor.
+
+Repetir la prueba opcional en Docker Desktop, desde PowerShell en la raiz,
+con estado de subasta nuevo:
+$testRoot = (Resolve-Path ./tests).Path
+docker run --rm --mount "type=bind,source=$testRoot,target=/tests,readonly" mcr.microsoft.com/playwright:v1.58.2-noble sh -c 'npm install --prefix /tmp/check --no-audit --no-fund playwright@1.58.2 && node /tests/browser-demo-test.cjs'
+Este comando es de validacion; no forma parte del arranque del usuario.
+WEB_URL permite indicar otro origen accesible desde el contenedor de prueba.
+
+PRUEBA 4: REINICIO COMPLETO WINDOWS
+docker compose down
+Exit code 0. Contenedores y red eliminados.
+Se ejecuto exclusivamente run.ps1 para volver a levantar la aplicacion.
+Exit code 0. Ambos servicios construidos y levantados; web healthy.
+Salida:
+Application started successfully.
+Frontend:
+http://localhost:8081
+
+PRUEBA 5: LINUX SIN NODE NI DOTNET
+docker compose down
+Exit code 0.
+Se monto la raiz de la solucion en /workspace (solo lectura) dentro de
+docker:cli y se conecto Docker CLI al socket del daemon.
+Antes del arranque se comprobo que command -v node, npm y dotnet no
+encontraban ningun ejecutable.
+Se ejecuto ./run.sh directamente, sin "sh run.sh", desde /workspace.
+Docker Compose v5.5.1 compilo ambos proyectos dentro de Docker.
+Exit code 0.
+Application started successfully.
+Frontend:
+http://localhost:8081
+Esta prueba valida POSIX/Linux; no se ejecuto en una maquina macOS.
+
+CONFIGURACION Y LIMPIEZA
+docker compose config --quiet: exit code 0.
+docker compose config --no-path-resolution: context "." y
+"frontend/Auction.Web", sin rutas personales.
+Compose config normal resuelve contextos a rutas absolutas del entorno:
+es salida calculada por Compose, no rutas hardcodeadas en los archivos.
+No se ejecutaron npm, node, dotnet restore o dotnet build en el host.
+package-lock.json existe y npm ci lo utilizo satisfactoriamente.
+.gitignore excluye node_modules, dist, bin, obj, .vs, logs y secretos.
+.dockerignore raiz corrige los patrones a **/node_modules y **/dist.
+Frontend tiene su propio .dockerignore.
+.gitattributes preserva LF para run.sh.
+El Dockerfile backend existente fue reutilizado.
+No se crearon configuraciones old/backup ni scripts de arranque duplicados.
+
+VERIFICACION DE CLONACION
+Ver tests/final-validation-results.txt.
+No hay procesos frontend/backend manuales requeridos fuera de Docker.
+
+REFERENCIAS TECNICAS
+https://docs.docker.com/reference/cli/docker/compose/up/
+https://nginx.org/en/docs/http/websocket.html
+
+ESTADO FINAL (capturado automaticamente)
+NAME                       IMAGE                    COMMAND                  SERVICE          CREATED         STATUS                   PORTS
+auction-auction-server-1   auction-auction-server   "dotnet WEBSOCKET.dll"   auction-server   2 minutes ago   Up 2 minutes             8080/tcp
+auction-auction-web-1      auction-auction-web      "/docker-entrypoint.…"   auction-web      2 minutes ago   Up 2 minutes (healthy)   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+HTTP frontend despues de run.sh: 200
+
+DOS PESTANAS DESPUES DEL REINICIO LINUX
+
+added 2 packages in 2s
+PASS: React rendered in two Chromium tabs; both Conectado; same-origin WebSocket
+PASS: Kenneth 120 -> both clients 120 / Kenneth, no refresh
+PASS: Maria 110 rejected only to Maria; Kenneth receives no message; price remains 120
+PASS: Maria 150 -> both clients 150 / Maria; zero reloads or JS errors
+PASS: real WebSocket frames and broadcast verified
+Exit code: 0
