@@ -138,11 +138,21 @@ flowchart LR
 
 ### Requisitos
 
-- **Docker** y **Docker Compose** (incluido en Docker Desktop).
+- **Docker** iniciado en modo contenedores Linux y **Docker Compose** con soporte para `up --wait` (incluido en Docker Desktop).
 - **Git**, para clonar el repositorio.
 
 No hace falta instalar Node.js, npm, el SDK de .NET, Visual Studio ni Nginx: todo se compila y se ejecuta dentro de
 contenedores.
+
+Tampoco se instalan bases de datos, Message Brokers ni API Gateways: el estado es en memoria y Nginx viene en su
+contenedor. Necesitas conexión a Internet para descargar imágenes y dependencias, y el puerto **8081** libre.
+
+### Clonar el repositorio
+
+```sh
+git clone https://github.com/Brandonaguicede/investigacion2.git
+cd investigacion2
+```
 
 ### Windows (PowerShell)
 
@@ -151,6 +161,9 @@ Desde la raíz del proyecto:
 ```powershell
 .\run.ps1
 ```
+
+Si PowerShell bloquea scripts por su política de ejecución, puedes ejecutarlo solo para este proceso con
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\run.ps1`, sin cambiar la política del sistema.
 
 ### Linux / macOS
 
@@ -162,6 +175,20 @@ Desde la raíz del proyecto:
 
 Cuando termina, el script imprime la dirección de la aplicación: **http://localhost:8081**. La primera vez descarga
 imágenes y compila, así que puede tardar unos minutos.
+
+El script ejecuta `docker compose up --build -d --wait --wait-timeout 120`. Docker compila ambas aplicaciones y
+el script espera hasta que el frontend esté saludable: su comprobación consulta la página y `/health`, que Nginx
+reenvía al backend. Si el arranque falla, muestra el estado y los logs y termina con error.
+
+### Comprobar los servicios
+
+```sh
+docker compose ps
+```
+
+Debes ver `auction-server` en ejecución y `auction-web` como `healthy`. Abre **http://localhost:8081/health**:
+debe devolver HTTP 200 con la cadena JSON `"OK"`. Esto comprueba la comunicación Nginx → backend; el escenario de
+dos pestañas de la siguiente sección comprueba además el intercambio bidireccional por WebSocket.
 
 ### Detener el proyecto
 
@@ -200,6 +227,8 @@ Para volver al estado inicial (precio 100, sin ganador):
 ```sh
 docker compose restart auction-server
 ```
+
+Después recarga las pestañas para reconectar: el cliente no tiene reconexión automática.
 
 ### Cómo comprobar que realmente es WebSocket
 
